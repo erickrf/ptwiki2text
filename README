@@ -1,0 +1,57 @@
+These scripts will read a Portuguese Wikipedia XML dump file, parse it and generate plain text files. They can also tokenize them. They try to treat most particularities from the Wiki markup, especially templates.
+
+WHAT IT DOES
+============
+
+The scripts takes two separate steps: 1) it parses the Wikipedia dump file, producing plain text files and 2) tokenizes the generated files, removing some garbage they may have been left.
+
+In the first step, the idea is to extract as much plain text content as possible. Markups like boldface, italic, etc. are ignored and their text kept. References, bibliography, tables and other structures that don't usually contain running text are discarded. Disambiguation pages are discarded, as are pages about years (they are a pain to treat and usually contain little text). Templates are replaced by a __TEMPLATE__ keyword. 
+
+The second step removes any sentence containing __TEMPLATE__, and also tries to identify templates that were left by the first step (sometimes they have a messy syntax). It replaces any occurrence of numbers by __NUMBER__ and URL's by __LINK__. It also separates clitic pronouns from verbs (like -me, -te, -se, etc.). After tokenizing, each line has a sentence and each token is separated by white spaces.
+
+If you want to change how tokenizing works, you'll just have to modify a couple of regular expressions (fear not, for they are well commented) in corpus_builder.py.
+
+WHY IT IGNORES TEMPLATES
+========================
+
+Wikipedia has thousands of templates, and each one has a particular behavior. I can't possibly emulate the ouput of each one of them, so I just ignore them. Since some of them produce text content which may be part of a sentence, I also discard sentences containing templates (but that isn't needed very often).
+
+
+CAVEAT
+======
+
+The code doesn't produce a perfect output, mainly because Wikipedia is not perfect; there are a lot of pages with syntax errors in the markup. I tried some heuristics to deal with them, but they can be quite unpredictable. It seems that the Portuguese Wikipedia has much more errors than the English one. 
+
+There is also the issue of the sentence tokenizer, which has to decide whether a period is a sentence delimiter or not. I use the Punkt tokenizer (based on machine learning), and while it has good performance, it makes mistakes sometimes. 
+
+The script separates clitic pronouns from verbs, but it can't recognize mesóclises (the pronoun "inside" the verb). Also, it always treats anything ending in -me, -te, -se, -nos, etc. as a clitic pronoun, so, false positives will happen (but then again, they are pretty rare).
+
+And naturally, there can be *my* mistakes. Most of the code is based on regular expressions, and although I'm pretty sure they are all correct, I'm aware that there are a very few cases where they aren't enough to treat all formatting patterns.
+
+HOW TO RUN
+==========
+
+Of course, you will need a Wikipedia XML dump file. You can download them at http://dumps.wikimedia.org/ptwiki/. 
+The script requires nltk (http://www.nltk.org/). You will need to download the data for the Punkt sentence tokenizer in Portuguese (I use it to recognize sentence boundaries). Here's how to do it:
+
+>>> from nltk import download
+>>> download()
+
+And then choose the data I just mentioned.
+After that, you can run the corpus_builder script:
+
+$ python corpus_builder -i wikipedia_dump_file.xml -o output_dir/ --one --max 1000
+
+The last two parameters are optional. --one saves one article per file (the default is to create files of around 50MB), and --max X will only read the first X articles. 
+
+The script also requires Python 2.7 because of the argparse module (which only reads command line arguments). If you don't have Python2.7, and can't install it (or don't want it), edit the code to remove the argparse module and provide the parameters in another way.
+
+HOW FAST IT IS
+==============
+
+To give a rough estimate, it took around 35 minutes to get 740 thousand articles in an Intel i5 with no SSD. If you use the --one option, it will be slower, as there will be much more I/O overhead.
+
+CONTACT
+=======
+
+My name is Erick R. Fonseca. If you need to contact me, email me at erickrfonseca@gmail.com
