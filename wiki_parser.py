@@ -79,12 +79,26 @@ def convertWikiList(txtLines):
             out += mode % k
     return out
 
-def filter_markup(t, html=False):
+def link(m):
+    '''
+    Function to treat links.
+    I'm not sure about image links appearing in the middle of running text. 
+    I'm adding new patterns here as I find them
+    '''
+    groups = m.groups()
+    if len(groups) == 1:
+        txt = groups[0]
+        if re.search("([Aa]rquivo|[Ii]magem?|[Ff]icheiro|[Ff]ile):", txt):
+            # it's a link for displaying a file
+            return ''
+        return txt
+    else:
+        return groups[1]
+
+def filter_markup(t):
     """
     Parses a piece of text containing wikimedia markup.
     Ref: http://meta.wikimedia.org/wiki/Help:Wikitext_reference
-    @param html: if True, returns the text with simplified HTML tags. Useful for debugging.
-    If false, the return will be raw text, section titles and lists will be discarded.
     """
     if t.startswith('#REDIRECIONAMENTO') or t.startswith('#REDIRECIONAMENTO') \
         or t.startswith(u'{{desambiguação'):
@@ -139,44 +153,13 @@ def filter_markup(t, html=False):
             ''', '__TEMPLATE__', t)
     
     # Treats section titles
-    def equal2h(m):
-        m = m.groupdict()
-        m['level'] = str(len(m['level']))
-        return "\n<h%(level)s>%(title)s</h%(level)s>\n<br/>\n" % m
-    if html:
-        t = re.sub("\n(?P<level>=+) *(?P<title>[^\n]*)\\1 *(?=\n)", equal2h, t )
-    else:
-        t = re.sub("\n(?P<level>=+) *(?P<title>[^\n]*)\\1 *(?=\n)", '', t )
+    t = re.sub("\n(?P<level>=+) *(?P<title>[^\n]*)\\1 *(?=\n)", '', t )
     
     # bold and italics markup
-    if html:
-        t = re.sub("'''(.+?)'''", "<strong>\\1</strong>", t)
-        t = re.sub("''(.+?)''", "<em>\\1</em>", t)
-    else:
-        t = re.sub("'''(.+?)'''", "\\1", t)
-        t = re.sub("''(.+?)''", "\\1", t)
+    t = re.sub("'''(.+?)'''", "\\1", t)
+    t = re.sub("''(.+?)''", "\\1", t)
     
     t = re.sub("(?u)^ \t]*==[ \t]*(\w)[ \t]*==[ \t]*\n", '<h2>(Image: \\1)</h2>', t)
-    
-    # links
-    # I'm not sure about image links appearing in the middle of running text. I'm putting new patterns
-    # here as I find them
-    def link(m):
-        groups = m.groups()
-        if len(groups) == 1:
-            txt = groups[0]
-            if html:
-                return '<a href=%s>%s</a>' % (txt, txt)
-            else:
-                if re.search("([Aa]rquivo|[Ii]magem?|[Ff]icheiro|[Ff]ile):", txt):
-                    # it's a link for displaying a file
-                    return ''
-                return txt
-        else:
-            if html:
-                return '<a href=%s>%s</a>' % (groups[0], groups[1])
-            else:
-                return groups[1]
     
     # I'm not sure if this order below could make any problem. It is meant to solve nested links as
     # [[Image: blabla [[bla]] bla]]
@@ -203,15 +186,11 @@ def filter_markup(t, html=False):
     # Ignore tables
     t = re.sub('\{\|(?P<head>[^!|}]+)(?P<caption>(\|\+.*)?)(?P<body>(.*\n)+?)\|\}', '', t)
     
-    if html:
-        t = re.sub("\n\n+", "\n<br/>", t)
-        t = re.sub(r'(<br\s*[-#\w=.,:;\'" ]*/?>\n?)+', r"\n<br/>", t) 
-    else:
-        t = re.sub('<div([^>]*?)>', '', t)
-        t = re.sub('</div\s*>', '', t)
-        t = re.sub('<center([^>]*?)>', '', t)
-        t = re.sub('</center\s*>', '', t)
-        t = re.sub(r'<br\s*[-#\w=.,:;\'" ]*/?>', r'\n', t)
+    t = re.sub('<div([^>]*?)>', '', t)
+    t = re.sub('</div\s*>', '', t)
+    t = re.sub('<center([^>]*?)>', '', t)
+    t = re.sub('</center\s*>', '', t)
+    t = re.sub(r'<br\s*[-#\w=.,:;\'" ]*/?>', r'\n', t)
         
     # Treats HTML entities that may appear
     t = re.sub('&nbsp;', ' ', t)
@@ -243,10 +222,7 @@ def filter_markup(t, html=False):
     # lists 
     # a trailing newline is appended to the text to deal with lists as the last item in a page
     t += '\n'
-    if html:
-        t = re.sub("\n(([#*:;]+[^\n]+\n)+)", lambda m : convertWikiList(m.group().split('\n')[1:]), t)
-    else:
-        t = re.sub("\n(([#*:;]+[^\n]+\n)+)", '\n', t)
+    t = re.sub("\n(([#*:;]+[^\n]+\n)+)", '\n', t)
     
     t = re.sub(u'—|--', '-', t)
     
@@ -256,8 +232,7 @@ def filter_markup(t, html=False):
 def get_articles(wikifile):
     """
     Generator function. Parses the Wikipedia XML dump file and yields an 
-    article at a time as raw text. The location of the XML file must be
-    provided in config.py. 
+    article at a time as raw text. 
     """
     # reading the dump file, one text a time, so we don't overload the memory
     context = iter(ET.iterparse(wikifile))
@@ -285,6 +260,7 @@ def get_articles(wikifile):
                     not (re.match('(?i)#(REDIRECIONAMENTO|REDIRECT)', text) or \
                          re.match(u'(?i){{desambiguação', text) or \
                          # pages for year's day are troublesome because of lots of templates
+                         # and have few useful text
                          re.match('(?i){{dia do ano', text)):
                     logger.debug("Reading %s..." % title)
                     parsed = filter_markup(text, html=False)

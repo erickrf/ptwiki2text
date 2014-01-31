@@ -13,48 +13,19 @@ import nltk
 import argparse
 from nltk.tokenize.regexp import RegexpTokenizer
 
-from wiki_parser import get_articles
+from wiki_parser import get_articles, filter_markup
 
-def tokenize(text, wiki=True):
-    """
-    Returns a list of lists of the tokens in text.
-    Each line break in the text starts a new list.
-    @param wiki: If True, performs some cleaning action on the text, such as replacing
-    numbers for the __NUMBER__ keyword.
-    """
-    ret = []
-    
-    if type(text) != unicode:
-        text = unicode(text, 'utf-8')
-    
-    if wiki:
-        text = clean_text(text, correct=True)
-    else:
-        # replace numbers for __NUMBER__ and store them to replace them back
-        numbers = re.findall(ur'\d+(?: \d+)*(?:[\.,]\d+)*[²³]*', text)
-        numbers.extend(re.findall(ur'[²³]+', text))
-        text = re.sub(ur'\d+( \d+)*([\.,]\d+)*[²³]*', '__NUMBER__', text)
-        text = re.sub(ur'[²³]+', '__NUMBER__', text)
-    
-    # clitic pronouns
-    regexp = r'''(?ux)
-        (?<=\w)                           # a letter before
-        -(me|
-        te|
-        o|a|no|na|lo|la|se|
-        lhe|lho|lha|lhos|lhas|
-        nos|
-        vos|
-        os|as|nos|nas|los|las|            # unless if followed by more chars
-        lhes)(?![-\w])                    # or digits or hyphens
-    '''
-    text = re.sub(regexp, r'- \1', text)
-    
-    regexp = ur'''(?ux)
+# these variables appear at module level for faster access and to avoid
+# repeated initialization
+
+_tokenizer_regexp = ur'''(?ux)
     # the order of the patterns is important!!
     ([^\W\d_]\.)+|                # one letter abbreviations, e.g. E.U.A.
-    __NUMBER__:__NUMBER__|        # time and proportions
+    \d+:\d+|                      # time and proportions
+    \d+([-\\/]\d+)*|              # dates. 12/03/2012 12-03-2012
     [DSds][Rr][Aa]?\.|            # common abbreviations such as dr., sr., sra., dra.
+    [Mm]\.?[Ss][Cc]\.?|           # M.Sc. with or without capitalization and dots
+    [Pp][Hh]\.?[Dd]\.?|           # Same for Ph.D.
     [^\W\d_]{1,2}\$|              # currency
     \w+([-']\w+)*-?|              # words with hyphens or apostrophes, e.g. não-verbal, McDonald's
                                   # or a verb with clitic pronoun removed (trailing hyphen is kept)
@@ -63,6 +34,41 @@ def tokenize(text, wiki=True):
     __LINK__|                     # links found on wikipedia
     \S                            # any non-space character
     '''
+_tokenizer = RegexpTokenizer(_tokenizer_regexp)
+
+# clitic pronouns
+_clitic_regexp_str = r'''(?ux)
+    (?<=\w)                           # a letter before
+    -(me|
+    te|
+    o|a|no|na|lo|la|se|
+    lhe|lho|lha|lhos|lhas|
+    nos|
+    vos|
+    os|as|nos|nas|los|las|            # unless if followed by more chars
+    lhes)(?![-\w])                    # or digits or hyphens
+'''
+_clitic_regexp = re.compile(_clitic_regexp_str)
+
+def tokenize(text, wiki=True, min_sentence_size=0):
+    """
+    Returns a list of lists of the tokens in text.
+    Each line break in the text starts a new list.
+    
+    :param wiki: If True, performs some cleaning action on the text, 
+        such as replacing any digit for 9.
+    :param min_sentence_size: If greater than zero, sentences
+        with fewer tokens than this number will be discarded. 
+    """
+    ret = []
+    
+    if type(text) != unicode:
+        text = unicode(text, 'utf-8')
+    
+    if wiki:
+        text = clean_text(text, correct=True)
+    
+    text = _clitic_regexp.sub(r'- \1', text)
     
     # loads trained model for tokenizing Portuguese sentences (provided by NLTK)
     sent_tokenizer = nltk.data.load('tokenizers/punkt/portuguese.pickle')
@@ -74,8 +80,6 @@ def tokenize(text, wiki=True):
     for line in lines:
         sentences.extend(sent_tokenizer.tokenize(line, realign_boundaries=True))
     
-    t = RegexpTokenizer(regexp)
-    
     for p in sentences:
         if p.strip() == '':
             continue
@@ -86,20 +90,13 @@ def tokenize(text, wiki=True):
             if any((x in p for x in ['__TEMPLATE__', '{{', '}}', '[[', ']]'])):
                 continue
         
-        new_sent = t.tokenize(p)
+        new_sent = _tokenizer.tokenize(p)
         
-        if wiki:
+        if min_sentence_size > 0:
             # discard sentences that are a couple of words (it happens sometimes
             # when extracting data from lists).
-            if len(new_sent) <= 2:
+            if len(new_sent) < min_sentence_size:
                 continue
-        elif len(numbers) > 0:
-            # put back numbers that were previously replaced
-            for i in xrange(len(new_sent)):
-                token = new_sent[i]
-                while '__NUMBER__' in token:
-                    token = token.replace('__NUMBER__', numbers.pop(0), 1)
-                new_sent[i] = token
         
         ret.append(new_sent)
         
@@ -107,11 +104,11 @@ def tokenize(text, wiki=True):
 
 def clean_text(text, correct=True):
     """
-    Apply some transformations to the text, such as mapping numbers to a __NUMBER__ keyword
-    and simplifying quotation marks.
-    @param correct: If True, tries to correct punctuation misspellings. 
-    """
+    Apply some transformations to the text, such as 
+    replacing digits for 9 and simplifying quotation marks.
     
+    :param correct: If True, tries to correct punctuation misspellings. 
+    """
     # replaces different kinds of quotation marks with "
     # take care not to remove apostrophes
     text = re.sub(ur"(?u)(\W)[‘’′`']", r'\1"', text)
@@ -128,8 +125,7 @@ def clean_text(text, correct=True):
         text = re.sub(' -(?=[^\W\d_])', ' - ', text)
     
     # replaces numbers with the __NUMBER__ token
-    text = re.sub(ur'\d+( \d+)*([\.,]\d+)*[²³]*', '__NUMBER__', text)
-    text = re.sub(ur'[²³]+', '__NUMBER__', text)
+    text = re.sub(r'\d', '9', text)
     
     # replaces special ellipsis character 
     text = re.sub(u'…', '...', text)
@@ -141,11 +137,12 @@ def clean_text(text, correct=True):
 def build_corpus_from_wiki(wikifile, output_dir='.', total_articles=0, one_per_file=True):
     """
     Reads a specified number of articles and saves them as a raw text files.
-    @param wikifile: path to the Wikipedia XML dump file
-    @param total_articles: the maximum number of articles to read. None or 
-    any number below 1 means all articles.
-    @param one_per_file: saves one article per file.
-    @param output_dir: directory where output files should be saved
+    
+    :param wikifile: path to the Wikipedia XML dump file
+    :param total_articles: the maximum number of articles to read. None or 
+        any number below 1 means all articles.
+    :param one_per_file: saves one article per file.
+    :param output_dir: directory where output files should be saved
     """
     
     def save_articles(articles, file_num):
@@ -191,6 +188,17 @@ def build_corpus_from_wiki(wikifile, output_dir='.', total_articles=0, one_per_f
     
     logger.info("Successfully read %d articles." % (article_num + 1))
 
+def convert_file(wikifile):
+    """
+    Reads a file containing a single wikipedia article. It will remove 
+    mediawiki markup and return the text.
+    """
+    with open(wikifile, "rb") as f:
+        text = f.read()
+    
+    text = unicode(text, "utf-8")
+    filtered = filter_markup(text)
+    return tokenize(filtered)
 
 if __name__ == '__main__':
     
@@ -200,11 +208,28 @@ if __name__ == '__main__':
     logger.setLevel(logging.INFO)
     
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('-i', help='Wikipedia dump file', dest='wikifile', required=True)
-    parser.add_argument('-o', help='Output directory', dest='output_dir', default='.')
-    parser.add_argument('--one', help='Saves one article per file', action='store_true')
-    parser.add_argument('--max', help='Maximum number of articles to read', type=int, default=0)
+    
+    # the input may be a dump of the Wikipedia or a file containing the source code
+    # for a single article
+    input_group = parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument('-a', 
+                             help='File with single wikipedia article', dest='wikifile')
+    input_group.add_argument('-i', 
+                             help='Wikipedia dump file', dest='dumpfile')
+    
+    parser.add_argument('-o', 
+                        help='Output directory', dest='output_dir', default='.')
+    parser.add_argument('--one', 
+                        help='Saves one article per file', action='store_true')
+    parser.add_argument('--max', 
+                        help='Maximum number of articles to read', type=int, default=0)
     args = parser.parse_args()
     
-    build_corpus_from_wiki(args.wikifile, args.output_dir, args.max, one_per_file=args.one)
+    if args.dumpfile:
+        build_corpus_from_wiki(args.dumpfile, args.output_dir, 
+                               args.max, one_per_file=args.one)
+    elif args.wikifile:
+        result = convert_file(args.wikifile)
+        text = '\n'.join(' '.join(sent) for sent in result)
+        print text.encode("utf-8") 
 
