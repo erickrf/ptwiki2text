@@ -21,6 +21,8 @@ from wiki_parser import get_articles, filter_markup
 _tokenizer_regexp = ur'''(?ux)
     # the order of the patterns is important!!
     ([^\W\d_]\.)+|                # one letter abbreviations, e.g. E.U.A.
+    \d{1,3}(\.\d{3})*(,\d+)|      # numbers in format 999.999.999,99999
+    \d{1,3}(,\d{3})*(\.\d+)|      # numbers in format 999,999,999.99999
     \d+:\d+|                      # time and proportions
     \d+([-\\/]\d+)*|              # dates. 12/03/2012 12-03-2012
     [DSds][Rr][Aa]?\.|            # common abbreviations such as dr., sr., sra., dra.

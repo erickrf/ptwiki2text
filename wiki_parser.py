@@ -263,7 +263,7 @@ def get_articles(wikifile):
                          # and have few useful text
                          re.match('(?i){{dia do ano', text)):
                     logger.debug("Reading %s..." % title)
-                    parsed = filter_markup(text, html=False)
+                    parsed = filter_markup(text)
                     yield parsed
                                     
         elem.clear()
