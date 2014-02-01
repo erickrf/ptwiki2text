@@ -108,7 +108,10 @@ def filter_markup(t):
     t = re.sub('(?s)<!--.*?-->', "", t) # force removing comments
     
     t = re.sub("(\n\[\[[a-z][a-z][\w-]*:[^:\]]+\]\])+($|\n)","", t) # force remove last (=languages) list
-       
+    
+    # remove <hr>
+    t = re.sub('(?i)<hr/?>', '', t)
+    
     t = re.sub('(?i)\[\[:?Categoria:(.*?)\]\]', '', t)
     
     # Removes everything in the sections Ver também, Bibliografia, Links Externos
@@ -118,11 +121,11 @@ def filter_markup(t):
     
     # Replaces mathematical formulae with __MATH__. It is important to remove these early on
     # because they often have curly brackets (using Latex notation), which can mess with the parse
-    t = re.sub('(?s)<math\s*>.*?</math>', '__MATH__', t)
+    t = re.sub('(?s)<math(\s[^>]*)?>.*?</math>', '__MATH__', t)
     
     # Remove references
-    t = re.sub('(?s)<ref([^>]*?)/>', '', t)
-    t = re.sub('(?s)<ref(.*?)>.*?</ref>', '', t)
+    t = re.sub('(?is)<\s*ref([^>]*?)/>', '', t)
+    t = re.sub('(?is)<\s*ref(.*?)>.*?</ref\s*>', '', t)
     
     #t = re.sub('(?s)<ref([> ].*?)(</ref>|/>)', '', t)
     t = re.sub('<references/>', '', t)
@@ -153,7 +156,7 @@ def filter_markup(t):
             ''', '__TEMPLATE__', t)
     
     # Treats section titles
-    t = re.sub("\n(?P<level>=+) *(?P<title>[^\n]*)\\1 *(?=\n)", '', t )
+    t = re.sub("(^|\n)(=+) *[^\n]*\\1 *(?=\n)", '', t )
     
     # bold and italics markup
     t = re.sub("'''(.+?)'''", "\\1", t)
@@ -190,7 +193,7 @@ def filter_markup(t):
     t = re.sub('</div\s*>', '', t)
     t = re.sub('<center([^>]*?)>', '', t)
     t = re.sub('</center\s*>', '', t)
-    t = re.sub(r'<br\s*[-#\w=.,:;\'" ]*/?>', r'\n', t)
+    t = re.sub(r'</?br\s*[-#\w=.,:;\'" ]*/?>', r'\n', t)
         
     # Treats HTML entities that may appear
     t = re.sub('&nbsp;', ' ', t)
@@ -204,14 +207,20 @@ def filter_markup(t):
     t = re.sub('(?is)<font\s*[-#\w=.,:;\'" ]*>(.*?)</font>', r'\1', t)
     t = re.sub(r'(?is)<poem\s*>(.*?)</poem>', r'\1', t)
     t = re.sub(r'(?is)<nowiki\s*>(.*?)</nowiki>', r'\1', t)
+    t = re.sub(r'(?is)<strong>(.*?)</strong\*>', r'\1', t)
+    
+    t = re.sub(r'(?is)<p\s[^>]*>(.*?)</p>', r'\1', t)
+    
+    # same as aboce. <cite> is sometimes used to italicize text
+    t = re.sub(r'(?is)<cite>(.*?)</cite>', r'\1', t)
     
     # Replace source code with a special token
     t = re.sub('(?s)<code(.*?)>.*?</code>', '__CODE__', t)
     t = re.sub('(?s)<source(.*?)>.*?</source>', '__CODE__', t)
     
     # Removes some tags
-    t = re.sub('(?is)<small\s*>.*?</small>', '', t)
-    t = re.sub('(?is)<sup\s*>.*?</sup>', '', t)
+    t = re.sub('(?is)<small\s*>.*?</small\s*>', '', t)
+    t = re.sub('(?is)<sup\s*>.*?</sup\s*>', '', t)
     t = re.sub('(?is)<gallery\s*[-#\w=.,:;\'" ]*>.*?</gallery>', '', t)
     t = re.sub('(?is)<noinclude\s*[-#\w=.,:;\'" ]*>.*?</noinclude>', '', t)
     t = re.sub('(?is)<includeonly\s*[-#\w=.,:;\'" ]*>.*?</includeonly>', '', t)
