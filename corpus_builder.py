@@ -126,11 +126,11 @@ def clean_text(text, correct=True):
         # blablabla -that is, bloblobloblo
         text = re.sub(' -(?=[^\W\d_])', ' - ', text)
     
-    # replaces numbers with the __NUMBER__ token
+    # replaces numbers with the 9's
     text = re.sub(r'\d', '9', text)
     
     # replaces special ellipsis character 
-    text = re.sub(u'…', '...', text)
+    text = text.replace(u'…', '...')
     
     return text
 
