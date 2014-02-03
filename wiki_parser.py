@@ -81,12 +81,12 @@ def filter_markup(t):
             ''', '__TEMPLATE__', t)
     
     # Removes some tags and their contents
-    t = re.sub(r'''(?isx)
+    t = re.sub(r'''(?isux)
     <
-    (small|sup|gallery|noinclude|
+    (small|sup|gallery|noinclude|ol|
     includeonly|onlyinclude|timeline|
-    table|ref)
-    \s*[-#\w=.,:;\'" ]*
+    table|ref|code|source|t[rdh])
+    \s*[-$!%@&_#\w=.,:;\'" ]*
     >
     .*?
     </\1\s*>
@@ -136,39 +136,12 @@ def filter_markup(t):
     sub|span|big|font|poem|
     nowiki|strong|cite|div|
     center|ref|references|
-    noinclude)                 # sometimes, a stray element like <noinclude> remains here
+    em|var|li|
+    noinclude|gallery)         # sometimes, a stray element like <noinclude> remains here
     \s*                        # white space
-    [-#%\w/&=().,:;\'" ]*      # xml attributes 
+    [-?$#%@\w/&=().,:;\'" ]*   # xml attributes 
     /?>                        # close tag bracket
     ''', '', t)
-    
-#     t = re.sub('(?is)<blockquote\s*[-#\w=.,:;\'" ]*>(.*?)</blockquote>', r'\1', t)
-#     t = re.sub(r'(?is)<(tt|b|u|s)\s*>(.*?)</\1>', r'\2', t)
-#     t = re.sub(r'(?is)<sub\s*>(.*?)</sub>', r'\1', t)
-#     t = re.sub('(?is)<span\s*[-#\w=.,:;\'" ]*>(.*?)</span>', r'\1', t)
-#     t = re.sub('(?is)<big\s*[-#\w=.,:;\'" ]*>(.*?)</big>', r'\1', t)
-#     t = re.sub('(?is)<font\s*[-#\w=.,:;\'" ]*>(.*?)</font>', r'\1', t)
-#     t = re.sub(r'(?is)<poem\s*>(.*?)</poem>', r'\1', t)
-#     t = re.sub(r'(?is)<nowiki\s*>(.*?)</nowiki>', r'\1', t)
-#     t = re.sub(r'(?is)<strong>(.*?)</strong\*>', r'\1', t)
-    
-#     t = re.sub(r'(?is)<p\s[^>]*>(.*?)</p>', r'\1', t)
-    
-    # same as aboce. <cite> is sometimes used to italicize text
-#     t = re.sub(r'(?is)<cite>(.*?)</cite>', r'\1', t)
-    
-    # Replace source code with a special token
-    t = re.sub('(?is)<(?:code|source)(.*?)>.*?</(?:code|source)>', '__CODE__', t)
-#     t = re.sub('(?s)<source(.*?)>.*?</source>', '__CODE__', t)
-    
-#     t = re.sub('(?is)<small\s*>.*?</small\s*>', '', t)
-#     t = re.sub('(?is)<sup\s*>.*?</sup\s*>', '', t)
-#     t = re.sub('(?is)<gallery\s*[-#\w=.,:;\'" ]*>.*?</gallery>', '', t)
-#     t = re.sub('(?is)<noinclude\s*[-#\w=.,:;\'" ]*>.*?</noinclude>', '', t)
-#     t = re.sub('(?is)<includeonly\s*[-#\w=.,:;\'" ]*>.*?</includeonly>', '', t)
-#     t = re.sub('(?is)<onlyinclude\s*[-#\w=.,:;\'" ]*>.*?</onlyinclude>', '', t)
-#     t = re.sub('(?is)<timeline(.*?)>.*?</timeline>', '', t)
-#     t = re.sub('(?is)<table(.*?)>.*?</table>', '', t)
     
     # lists 
     # a trailing newline is appended to the text to deal with lists as the last item in a page
