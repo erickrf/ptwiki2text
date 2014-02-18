@@ -29,6 +29,7 @@ _tokenizer_regexp = ur'''(?ux)
     [Mm]\.?[Ss][Cc]\.?|           # M.Sc. with or without capitalization and dots
     [Pp][Hh]\.?[Dd]\.?|           # Same for Ph.D.
     [^\W\d_]{1,2}\$|              # currency
+    (?:(?<=\s)|^)[\#@]\w*[A-Za-z_]+\w*|  # Hashtags and twitter user names
     \w+([-']\w+)*-?|              # words with hyphens or apostrophes, e.g. não-verbal, McDonald's
                                   # or a verb with clitic pronoun removed (trailing hyphen is kept)
     -+|                           # any sequence of dashes
@@ -89,7 +90,8 @@ def tokenize(text, wiki=True, min_sentence_size=0):
         # Wikipedia cleaning 
         if wiki:
             # discard sentences with troublesome templates or links
-            if any((x in p for x in ['__TEMPLATE__', '{{', '}}', '[[', ']]'])):
+            if p[0] in ['!', '|'] or '{{' in p or '}}' in p or '[[' in p \
+                or ']]' in p or '{|' in p or '|}' in p or '__TEMPLATE__' in p:
                 continue
         
         new_sent = _tokenizer.tokenize(p)
@@ -136,7 +138,8 @@ def clean_text(text, correct=True):
 
 
 
-def build_corpus_from_wiki(wikifile, output_dir='.', total_articles=0, one_per_file=True):
+def build_corpus_from_wiki(wikifile, output_dir='.', total_articles=0, 
+                           one_per_file=True, min_sent_size=0):
     """
     Reads a specified number of articles and saves them as a raw text files.
     
@@ -149,7 +152,7 @@ def build_corpus_from_wiki(wikifile, output_dir='.', total_articles=0, one_per_f
     
     def save_articles(articles, file_num):
         text = '\n'.join(articles)
-        tokens = tokenize(text, wiki=True)
+        tokens = tokenize(text, wiki=True, min_sentence_size=min_sent_size)
         text = '\n'.join([' '.join(sent) for sent in tokens])
         
         filename = path.join(output_dir, wiki_basename % str(file_num))
@@ -190,7 +193,7 @@ def build_corpus_from_wiki(wikifile, output_dir='.', total_articles=0, one_per_f
     
     logger.info("Successfully read %d articles." % (article_num + 1))
 
-def convert_file(wikifile):
+def convert_file(wikifile, min_sent_size=0):
     """
     Reads a file containing a single wikipedia article. It will remove 
     mediawiki markup and return the text.
@@ -200,7 +203,7 @@ def convert_file(wikifile):
     
     text = unicode(text, "utf-8")
     filtered = filter_markup(text)
-    return tokenize(filtered)
+    return tokenize(filtered, min_sentence_size=min_sent_size)
 
 if __name__ == '__main__':
     
@@ -223,15 +226,16 @@ if __name__ == '__main__':
                         help='Output directory', dest='output_dir', default='.')
     parser.add_argument('--one', 
                         help='Saves one article per file', action='store_true')
+    parser.add_argument('--size', help='Minimum sentence size', type=int, default=0)
     parser.add_argument('--max', 
                         help='Maximum number of articles to read', type=int, default=0)
     args = parser.parse_args()
     
     if args.dumpfile:
         build_corpus_from_wiki(args.dumpfile, args.output_dir, 
-                               args.max, one_per_file=args.one)
+                               args.max, one_per_file=args.one, min_sent_size=args.size)
     elif args.wikifile:
-        result = convert_file(args.wikifile)
+        result = convert_file(args.wikifile, args.size)
         text = '\n'.join(' '.join(sent) for sent in result)
         print text.encode("utf-8") 
 
