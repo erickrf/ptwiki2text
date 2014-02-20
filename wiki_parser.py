@@ -56,11 +56,7 @@ def filter_markup(t):
     # Replaces mathematical formulae with __MATH__. It is important to remove these early on
     # because they often have curly brackets (using Latex notation), which can mess with the parse
     t = re.sub('(?s)<math(\s[^>]*)?>.*?</math>', '__MATH__', t)
-    
-    # Replaces IPA signs for __IPA__. It seems better than to ignore, since it often appears in the
-    # beginning of articles.
-#     t = re.sub('{{IPA2\|.*?}}', '__IPA__', t)
-    
+        
     # some formatting options appear as {{{width|200}}}
     t = re.sub("{{{[^}{]*}}}", '', t)
     
@@ -99,8 +95,6 @@ def filter_markup(t):
     t = t.replace("'''", "")
     t = t.replace("''", "")
     
-#     t = re.sub("(?u)^ \t]*==[ \t]*(\w)[ \t]*==[ \t]*\n", '(Image: \\1)', t)
-    
     # I'm not sure if this order below could make any problem. It is meant to solve nested links as
     # [[Image: blabla [[bla]] bla]]
     t = re.sub("(?s)\[\[([^][|]*?)\]\]", link, t)
@@ -112,7 +106,6 @@ def filter_markup(t):
     # external links
     t = re.sub('\[(?:https?|ftp)://[^][\s]+?\s+(.+?)\]', '\\1', t)
     t = re.sub('\[?(?:https?|ftp)://[^][\s]+\]?', '__LINK__', t)
-#     t = re.sub('(https?|ftp)://[^][\s]+', '__LINK__', t)
         
     t = re.sub("""(?msx)\[\[(?:
     [Aa]rquivo|
