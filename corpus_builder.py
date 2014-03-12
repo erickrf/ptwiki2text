@@ -30,8 +30,8 @@ _tokenizer_regexp = ur'''(?ux)
     [Pp][Hh]\.?[Dd]\.?|           # Same for Ph.D.
     [^\W\d_]{1,2}\$|              # currency
     (?:(?<=\s)|^)[\#@]\w*[A-Za-z_]+\w*|  # Hashtags and twitter user names
-    \w+([-']\w+)*-?|              # words with hyphens or apostrophes, e.g. não-verbal, McDonald's
-                                  # or a verb with clitic pronoun removed (trailing hyphen is kept)
+    -[^\W\d_]+|                   # clitic pronouns with leading hyphen
+    \w+([-']\w+)*|                # words with hyphens or apostrophes, e.g. não-verbal, McDonald's
     -+|                           # any sequence of dashes
     \.{3,}|                       # ellipsis or sequences of dots
     __LINK__|                     # links found on wikipedia
@@ -71,7 +71,7 @@ def tokenize(text, wiki=True, min_sentence_size=0):
     if wiki:
         text = clean_text(text, correct=True)
     
-    text = _clitic_regexp.sub(r'- \1', text)
+    text = _clitic_regexp.sub(r' -\1', text)
     
     # loads trained model for tokenizing Portuguese sentences (provided by NLTK)
     sent_tokenizer = nltk.data.load('tokenizers/punkt/portuguese.pickle')
